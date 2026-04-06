@@ -1,0 +1,40 @@
+name: Task 1 Terraform
+
+on:
+  push:
+    paths:
+      - 'task1/**'
+  workflow_dispatch:
+    inputs:
+      destroy:
+        description: 'Destroy infrastructure'
+        required: true
+        default: 'false'
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./task1
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - run: terraform init
+
+      - run: terraform validate
+
+      - run: terraform plan -var="ssh_public_key=${{ secrets.SSH_PUBLIC_KEY }}" -out=tfplan
+        if: github.event.inputs.destroy != 'true'
+
+      - run: terraform apply -auto-approve tfplan
+        if: github.event.inputs.destroy != 'true'
+
+      - run: terraform destroy -auto-approve -var="ssh_public_key=${{ secrets.SSH_PUBLIC_KEY }}"
+        if: github.event.inputs.destroy == 'true'
