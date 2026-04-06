@@ -87,10 +87,3 @@
       become_user: adminuser
       shell: kubectl wait --for=condition=Ready nodes --all --timeout=60s
       ignore_errors: "{{ ansible_check_mode }}"
-
-    - name: Verify Minikube Access (Proxy Test)
-      run: |
-          ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no -L 8001:localhost:8001 adminuser@${{ env.VM_IP }} "kubectl proxy" &
-          sleep 5
-          curl -s http://localhost:8001/version || exit 1
-          echo "Minikube API is accessible via SSH Tunnel!"
