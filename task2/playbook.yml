@@ -23,12 +23,14 @@
       apt_key:
         url: https://download.docker.com/linux/ubuntu/gpg
         state: present
+      check_mode: no
 
     - name: Add Docker repository
       apt_repository:
         repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_facts['distribution_release'] }} stable"
         state: present
         update_cache: yes
+      check_mode: no
 
     - name: Install Docker
       apt:
@@ -37,7 +39,8 @@
           - docker-ce-cli
           - containerd.io
         state: present
-        update_cache: yes # І на всякий випадок тут
+        update_cache: yes
+      ignore_errors: "{{ ansible_check_mode }}"
 
     - name: Add adminuser to docker group
       user:
@@ -70,3 +73,4 @@
         minikube start --driver=docker --listen-address=0.0.0.0
       args:
         creates: /home/adminuser/.minikube
+      ignore_errors: "{{ ansible_check_mode }}"
