@@ -38,6 +38,16 @@ jobs:
           IP=$(az network public-ip show --resource-group tesliuk-rg --name tesliuk-pip --query ipAddress -o tsv)
           echo "VM_IP=$IP" >> $GITHUB_ENV
 
+      - name: Copy manifest to server
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ env.VM_IP }}
+          username: adminuser
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "task3/k8s.yaml"
+          target: "~/"
+          strip_components: 1
+
       - name: Deploy to Minikube via SSH
         uses: appleboy/ssh-action@master
         with:
@@ -46,7 +56,5 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             export DOCKER_IMAGE=${{ secrets.DOCKER_HUB_USERNAME }}/tesliuk-app:latest
-            cat <<EOF > k8s.yaml
-            $(envsubst < task3/k8s.yaml)
-            EOF
-            sg docker -c "kubectl apply -f k8s.yaml"
+            envsubst < ~/k8s.yaml > ~/k8s_final.yaml
+            sg docker -c "kubectl apply -f ~/k8s_final.yaml"
