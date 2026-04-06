@@ -1,10 +1,11 @@
 name: Task 3 Build and Deploy
 
 on:
-  workflow_run:
-    workflows: ["Task 2 Ansible Deployment"]
-    types: [completed]
   push:
+    branches:
+      - develop
+    tags:
+      - '1.0.0'
     paths:
       - 'task3/**'
   workflow_dispatch:
