@@ -1,20 +1,30 @@
 name: Task 3 Build and Deploy
 
 on:
-  workflow_run:
-    workflows: ["Task 2 Ansible Deployment"]
-    types: [completed]
   push:
-    paths:
-      - 'task3/**'
+    branches:
+      - develop
+    tags:
+      - '1.0.0'
   workflow_dispatch:
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set Environment Variables
+        run: |
+          if [[ ${{ github.ref }} == refs/tags/* ]]; then
+            echo "ENV_NAME=release" >> $GITHUB_ENV
+            echo "APP_PORT=8003" >> $GITHUB_ENV
+            echo "DOCKER_TAG=${{ github.ref_name }}" >> $GITHUB_ENV
+          else
+            echo "ENV_NAME=dev" >> $GITHUB_ENV
+            echo "APP_PORT=8002" >> $GITHUB_ENV
+            echo "DOCKER_TAG=dev" >> $GITHUB_ENV
+          fi
 
       - name: Login to Docker Hub
         uses: docker/login-action@v3
@@ -24,7 +34,7 @@ jobs:
 
       - name: Build and Push
         run: |
-          IMAGE_NAME=${{ secrets.DOCKER_HUB_USERNAME }}/tesliuk-app:latest
+          IMAGE_NAME=${{ secrets.DOCKER_HUB_USERNAME }}/tesliuk-app:${{ env.DOCKER_TAG }}
           docker build -t $IMAGE_NAME ./task3
           docker push $IMAGE_NAME
 
@@ -48,13 +58,19 @@ jobs:
           target: "~/"
           strip_components: 1
 
-      - name: Deploy to Minikube via SSH
+      - name: Deploy to Minikube
         uses: appleboy/ssh-action@master
         with:
           host: ${{ env.VM_IP }}
           username: adminuser
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: ENV_NAME,APP_PORT,DOCKER_TAG,DOCKER_HUB_USERNAME
           script: |
-            export DOCKER_IMAGE=${{ secrets.DOCKER_HUB_USERNAME }}/tesliuk-app:latest
-            envsubst < ~/k8s.yaml > ~/k8s_final.yaml
-            sg docker -c "kubectl apply -f ~/k8s_final.yaml"
+            export DOCKER_IMAGE=${DOCKER_HUB_USERNAME}/tesliuk-app:${DOCKER_TAG}
+            envsubst < ~/k8s.yaml > ~/k8s_${ENV_NAME}.yaml
+            
+            sg docker -c "kubectl apply -f ~/k8s_${ENV_NAME}.yaml --dry-run=server"
+            
+            sg docker -c "kubectl apply -f ~/k8s_${ENV_NAME}.yaml"
+            
+            sg docker -c "kubectl rollout status deployment/tesliuk-app-${ENV_NAME} --timeout=60s"

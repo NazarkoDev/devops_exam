@@ -1,16 +1,16 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: tesliuk-app
+  name: tesliuk-app-${ENV_NAME}
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: tesliuk-app
+      app: tesliuk-app-${ENV_NAME}
   template:
     metadata:
       labels:
-        app: tesliuk-app
+        app: tesliuk-app-${ENV_NAME}
     spec:
       containers:
       - name: fastapi-app
@@ -21,12 +21,12 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: tesliuk-service
+  name: tesliuk-service-${ENV_NAME}
 spec:
   selector:
-    app: tesliuk-app
+    app: tesliuk-app-${ENV_NAME}
   ports:
     - protocol: TCP
-      port: 80
+      port: ${APP_PORT}
       targetPort: 8000
   type: NodePort
