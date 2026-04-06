@@ -77,7 +77,7 @@
       become: yes
       become_user: adminuser
       shell: |
-        minikube start --driver=docker --listen-address=0.0.0.0
+        sg docker -c "minikube start --driver=docker --listen-address=0.0.0.0"
       register: minikube_output
       changed_when: "'Done!' in minikube_output.stdout or 'Starting' in minikube_output.stdout"
       ignore_errors: "{{ ansible_check_mode }}"
@@ -85,5 +85,6 @@
     - name: Wait for Minikube to be ready
       become: yes
       become_user: adminuser
-      shell: kubectl wait --for=condition=Ready nodes --all --timeout=60s
+      shell: |
+        sg docker -c "kubectl wait --for=condition=Ready nodes --all --timeout=90s"
       ignore_errors: "{{ ansible_check_mode }}"
