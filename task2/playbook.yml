@@ -46,6 +46,7 @@
       group:
         name: docker
         state: present
+      check_mode: no
 
     - name: Add adminuser to docker group
       user:
@@ -76,7 +77,7 @@
       become: yes
       become_user: adminuser
       shell: |
-        minikube start --driver=docker --listen-address=0.0.0.0
+        sg docker -c "minikube start --driver=docker --listen-address=0.0.0.0"
       args:
         creates: /home/adminuser/.minikube
       ignore_errors: "{{ ansible_check_mode }}"
