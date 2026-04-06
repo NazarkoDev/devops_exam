@@ -1,6 +1,10 @@
 name: Task 2 Ansible Deployment
 
 on:
+  workflow_run:
+    workflows: ["Task 1 Terraform"]
+    types:
+      - completed
   push:
     paths:
       - 'task2/**'
@@ -9,6 +13,7 @@ on:
 jobs:
   ansible-deploy:
     runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -22,7 +27,6 @@ jobs:
         id: fetch_ip
         run: |
           IP=$(az network public-ip show --resource-group tesliuk-rg --name tesliuk-pip --query ipAddress -o tsv)
-          echo "Отримано IP: $IP"
           echo "VM_IP=$IP" >> $GITHUB_ENV
 
       - name: Set up SSH key
