@@ -66,11 +66,12 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           envs: ENV_NAME,APP_PORT,DOCKER_TAG,DOCKER_HUB_USERNAME
           script: |
-            export DOCKER_IMAGE=${DOCKER_HUB_USERNAME}/tesliuk-app:${DOCKER_TAG}
+            # Тепер ці змінні точно будуть доступні тут
+            export DOCKER_IMAGE="${DOCKER_HUB_USERNAME}/tesliuk-app:${DOCKER_TAG}"
             envsubst < ~/k8s.yaml > ~/k8s_${ENV_NAME}.yaml
-            
-            sg docker -c "kubectl apply -f ~/k8s_${ENV_NAME}.yaml --dry-run=server"
-            
             sg docker -c "kubectl apply -f ~/k8s_${ENV_NAME}.yaml"
-            
-            sg docker -c "kubectl rollout status deployment/tesliuk-app-${ENV_NAME} --timeout=60s"
+        env: # ЦЕЙ БЛОК МАЄ БУТИ ТУТ ОБОВ'ЯЗКОВО
+          ENV_NAME: ${{ env.ENV_NAME }}
+          APP_PORT: ${{ env.APP_PORT }}
+          DOCKER_TAG: ${{ env.DOCKER_TAG }}
+          DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
