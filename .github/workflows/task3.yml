@@ -1,0 +1,52 @@
+name: Task 3 Build and Deploy
+
+on:
+  workflow_run:
+    workflows: ["Task 2 Ansible Deployment"]
+    types: [completed]
+  push:
+    paths:
+      - 'task3/**'
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+
+      - name: Build and Push
+        run: |
+          IMAGE_NAME=${{ secrets.DOCKER_HUB_USERNAME }}/tesliuk-app:latest
+          docker build -t $IMAGE_NAME ./task3
+          docker push $IMAGE_NAME
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Get VM IP
+        run: |
+          IP=$(az network public-ip show --resource-group tesliuk-rg --name tesliuk-pip --query ipAddress -o tsv)
+          echo "VM_IP=$IP" >> $GITHUB_ENV
+
+      - name: Deploy to Minikube via SSH
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ env.VM_IP }}
+          username: adminuser
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            export DOCKER_IMAGE=${{ secrets.DOCKER_HUB_USERNAME }}/tesliuk-app:latest
+            cat <<EOF > k8s.yaml
+            $(envsubst < task3/k8s.yaml)
+            EOF
+            sg docker -c "kubectl apply -f k8s.yaml"
