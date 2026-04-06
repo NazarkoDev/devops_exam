@@ -1,53 +1,72 @@
-name: Task 2 Ansible Deployment
+---
+- hosts: minikube_nodes
+  become: yes
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
 
-on:
-  push:
-    paths:
-      - 'task2/**'
-  workflow_dispatch:
+    - name: Install dependencies
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+          - conntrack
+        state: present
 
-jobs:
-  ansible-deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    - name: Add Docker GPG key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
 
-      - name: Azure Login
-        uses: azure/login@v1
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+    - name: Add Docker repository
+      apt_repository:
+        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_facts['distribution_release'] }} stable"
+        state: present
+        update_cache: yes # Обов'язково оновлюємо кеш тут
 
-      - name: Get VM Public IP from Azure
-        id: fetch_ip
-        run: |
-          IP=$(az network public-ip show --resource-group tesliuk-rg --name tesliuk-pip --query ipAddress -o tsv)
-          echo "Отримано IP: $IP"
-          echo "VM_IP=$IP" >> $GITHUB_ENV
+    - name: Install Docker
+      apt:
+        name: 
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+        state: present
+        update_cache: yes # І на всякий випадок тут
 
-      - name: Set up SSH key
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
+    - name: Add adminuser to docker group
+      user:
+        name: adminuser
+        groups: docker
+        append: yes
 
-      - name: Install Ansible
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ansible
+    - name: Install kubectl
+      get_url:
+        url: "https://dl.k8s.io/release/v1.30.0/bin/linux/amd64/kubectl"
+        dest: /usr/local/bin/kubectl
+        mode: '0755'
 
-      - name: Replace IP in Inventory
-        run: |
-          envsubst < task2/inventory.ini > task2/inventory_final.ini
+    - name: Install Minikube
+      get_url:
+        url: https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+        dest: /usr/local/bin/minikube
+        mode: '0755'
 
-      - name: Ansible Syntax Check
-        run: |
-          ansible-playbook -i task2/inventory_final.ini task2/playbook.yml --syntax-check
+    - name: Install Helm
+      shell: |
+        curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+      args:
+        creates: /usr/local/bin/helm
 
-      - name: Ansible Dry Run (Check Mode)
-        run: |
-          ansible-playbook -i task2/inventory_final.ini task2/playbook.yml --check
-
-      - name: Run Ansible Playbook
-        run: |
-          ansible-playbook -i task2/inventory_final.ini task2/playbook.yml
+    - name: Start Minikube
+      become: yes
+      become_user: adminuser
+      shell: |
+        minikube start --driver=docker --listen-address=0.0.0.0
+      args:
+        creates: /home/adminuser/.minikube
