@@ -26,13 +26,18 @@
 
     - name: Add Docker repository
       apt_repository:
-        repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable
+        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_facts['distribution_release'] }} stable"
         state: present
+        update_cache: yes
 
     - name: Install Docker
       apt:
-        name: docker-ce
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
         state: present
+        update_cache: yes # І на всякий випадок тут
 
     - name: Add adminuser to docker group
       user:
@@ -42,7 +47,7 @@
 
     - name: Install kubectl
       get_url:
-        url: "https://dl.k8s.io/release/{{ lookup('pipe', 'curl -L -s https://dl.k8s.io/release/stable.txt') }}/bin/linux/amd64/kubectl"
+        url: "https://dl.k8s.io/release/v1.30.0/bin/linux/amd64/kubectl"
         dest: /usr/local/bin/kubectl
         mode: '0755'
 
@@ -58,7 +63,7 @@
       args:
         creates: /usr/local/bin/helm
 
-    - name: Start Minikube with proxy settings
+    - name: Start Minikube
       become: yes
       become_user: adminuser
       shell: |
