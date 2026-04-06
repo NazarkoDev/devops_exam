@@ -35,6 +35,5 @@ jobs:
 
       - run: terraform apply -auto-approve tfplan
         if: github.event.inputs.destroy != 'true'
-
       - run: terraform destroy -auto-approve -var="ssh_public_key=${{ secrets.SSH_PUBLIC_KEY }}"
         if: github.event.inputs.destroy == 'true'
