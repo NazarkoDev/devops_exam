@@ -6,6 +6,8 @@ on:
     types:
       - completed
   push:
+    branches:
+      - main
     paths:
       - 'task2/**'
   workflow_dispatch:
