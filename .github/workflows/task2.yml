@@ -1,0 +1,53 @@
+name: Task 2 Ansible Deployment
+
+on:
+  push:
+    paths:
+      - 'task2/**'
+  workflow_dispatch:
+
+jobs:
+  ansible-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Get VM Public IP from Azure
+        id: fetch_ip
+        run: |
+          IP=$(az network public-ip show --resource-group tesliuk-rg --name tesliuk-pip --query ipAddress -o tsv)
+          echo "Отримано IP: $IP"
+          echo "VM_IP=$IP" >> $GITHUB_ENV
+
+      - name: Set up SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+      - name: Install Ansible
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ansible
+
+      - name: Replace IP in Inventory
+        run: |
+          envsubst < task2/inventory.ini > task2/inventory_final.ini
+
+      - name: Ansible Syntax Check
+        run: |
+          ansible-playbook -i task2/inventory_final.ini task2/playbook.yml --syntax-check
+
+      - name: Ansible Dry Run (Check Mode)
+        run: |
+          ansible-playbook -i task2/inventory_final.ini task2/playbook.yml --check
+
+      - name: Run Ansible Playbook
+        run: |
+          ansible-playbook -i task2/inventory_final.ini task2/playbook.yml
