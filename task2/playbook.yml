@@ -42,11 +42,17 @@
         update_cache: yes
       ignore_errors: "{{ ansible_check_mode }}"
 
+    - name: Ensure docker group exists
+      group:
+        name: docker
+        state: present
+
     - name: Add adminuser to docker group
       user:
         name: adminuser
         groups: docker
         append: yes
+      ignore_errors: "{{ ansible_check_mode }}"
 
     - name: Install kubectl
       get_url:
